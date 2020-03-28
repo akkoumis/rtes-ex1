@@ -22,7 +22,7 @@
 
 #define QUEUESIZE 10
 #define LOOP 20
-#define pNum 4
+#define pNum 1
 #define qNum 4
 
 void *producer(void *tid);
@@ -77,8 +77,8 @@ int main() {
     areProducersActive = 0;
     pthread_mutex_lock(fifo->mut);
     pthread_cond_broadcast(fifo->notEmpty); // In case any of the consumers is condition waiting
+    printf("BROADCAST for possible conditional waiting consumers!!!\n");
     pthread_mutex_unlock(fifo->mut);
-    printf("BROADCAST!!!\n");
     for (int tid = 0; tid < qNum; ++tid) {
         pthread_join(con[tid], NULL); // Join  the Consumer thread to main thread and wait for its completion
     }
@@ -119,16 +119,18 @@ void *consumer(void *tid) {
     workFunction d;
 
     //fifo = (queue *) q;
-    while (areProducersActive || fifo->empty==0) {
+    while (1) {
         //for (i = 0; i < LOOP; i++) {
         pthread_mutex_lock(fifo->mut);
         while (fifo->empty) {
-            printf("consumer %d: queue EMPTY.\n", (int) tid);
-            pthread_cond_wait(fifo->notEmpty, fifo->mut);
             if (areProducersActive == 0) {
+                pthread_mutex_unlock(fifo->mut);
                 printf("consumer %d: queue RETURNED.\n", (int) tid);
                 return (NULL);
             }
+            printf("consumer %d: queue EMPTY.\n", (int) tid);
+            pthread_cond_wait(fifo->notEmpty, fifo->mut);
+
         }
         queueDel(fifo, &d);
         pthread_mutex_unlock(fifo->mut);
@@ -138,7 +140,7 @@ void *consumer(void *tid) {
         usleep(200000);
     }
 
-    return (NULL);
+    //return (NULL);
 }
 
 /*
