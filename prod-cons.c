@@ -37,7 +37,7 @@ typedef struct {
 
 // Structure representing the queue
 typedef struct {
-    int buf[QUEUESIZE]; // Queue buffer
+    workFunction buf[QUEUESIZE]; // Queue buffer
     long head, tail; // Boundries
     int full, empty; // Flags for empty, full
     pthread_mutex_t *mut; // Mutex for modifying the queue
@@ -48,9 +48,9 @@ queue *queueInit(void);
 
 void queueDelete(queue *q);
 
-void queueAdd(queue *q, int in);
+void queueAdd(queue *q, workFunction in);
 
-void queueDel(queue *q, int *out);
+void queueDel(queue *q, workFunction *out);
 
 int main() {
     queue *fifo; // The queue
@@ -73,6 +73,7 @@ int main() {
 void *producer(void *q) {
     queue *fifo;
     int i;
+    workFunction wF;
 
     fifo = (queue *) q;
 
@@ -80,9 +81,9 @@ void *producer(void *q) {
         pthread_mutex_lock(fifo->mut); // Attempt to lock queue mutex.
         while (fifo->full) { // When lock is acquired check if queue is full
             printf("producer: queue FULL.\n");
-            pthread_cond_wait(fifo->notFull, fifo->mut); //
+            pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
-        queueAdd(fifo, i);
+        queueAdd(fifo, wF);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
         //pthread_cond_broadcast(fifo->notEmpty);
@@ -94,7 +95,7 @@ void *producer(void *q) {
             printf("producer: queue FULL.\n");
             pthread_cond_wait(fifo->notFull, fifo->mut);
         }
-        queueAdd(fifo, i);
+        queueAdd(fifo, wF);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
         //pthread_cond_broadcast(fifo->notEmpty);
@@ -105,7 +106,8 @@ void *producer(void *q) {
 
 void *consumer(void *q) {
     queue *fifo;
-    int i, d;
+    int i;
+    workFunction d;
 
     fifo = (queue *) q;
 
@@ -178,7 +180,7 @@ void queueDelete(queue *q) {
     free(q);
 }
 
-void queueAdd(queue *q, int in) {
+void queueAdd(queue *q, workFunction in) {
     q->buf[q->tail] = in;
     q->tail++;
     if (q->tail == QUEUESIZE)
@@ -190,7 +192,7 @@ void queueAdd(queue *q, int in) {
     return;
 }
 
-void queueDel(queue *q, int *out) {
+void queueDel(queue *q, workFunction *out) {
     *out = q->buf[q->head];
 
     q->head++;
