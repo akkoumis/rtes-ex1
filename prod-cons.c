@@ -77,14 +77,15 @@ void *producer(void *q) {
     fifo = (queue *) q;
 
     for (i = 0; i < LOOP; i++) {
-        pthread_mutex_lock(fifo->mut);
-        while (fifo->full) {
+        pthread_mutex_lock(fifo->mut); // Attempt to lock queue mutex.
+        while (fifo->full) { // When lock is acquired check if queue is full
             printf("producer: queue FULL.\n");
-            pthread_cond_wait(fifo->notFull, fifo->mut);
+            pthread_cond_wait(fifo->notFull, fifo->mut); //
         }
         queueAdd(fifo, i);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
+        //pthread_cond_broadcast(fifo->notEmpty);
         usleep(100000);
     }
     for (i = 0; i < LOOP; i++) {
@@ -96,6 +97,7 @@ void *producer(void *q) {
         queueAdd(fifo, i);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
+        //pthread_cond_broadcast(fifo->notEmpty);
         usleep(200000);
     }
     return (NULL);
@@ -116,6 +118,7 @@ void *consumer(void *q) {
         queueDel(fifo, &d);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
+        //pthread_cond_broadcast(fifo->notFull);
         printf("consumer: recieved %d.\n", d);
         usleep(200000);
     }
@@ -128,6 +131,7 @@ void *consumer(void *q) {
         queueDel(fifo, &d);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
+        //pthread_cond_broadcast(fifo->notFull);
         printf("consumer: recieved %d.\n", d);
         usleep(50000);
     }
