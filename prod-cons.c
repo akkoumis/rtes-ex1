@@ -73,7 +73,6 @@ int main() {
 void *producer(void *q) {
     queue *fifo;
     int i;
-    workFunction wF;
 
     fifo = (queue *) q;
 
@@ -83,6 +82,8 @@ void *producer(void *q) {
             printf("producer: queue FULL.\n");
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
+        workFunction wF;
+        wF.arg=i;
         queueAdd(fifo, wF);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
@@ -95,6 +96,8 @@ void *producer(void *q) {
             printf("producer: queue FULL.\n");
             pthread_cond_wait(fifo->notFull, fifo->mut);
         }
+        workFunction wF;
+        wF.arg=i;
         queueAdd(fifo, wF);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
@@ -121,7 +124,7 @@ void *consumer(void *q) {
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
         //pthread_cond_broadcast(fifo->notFull);
-        printf("consumer: recieved %d.\n", d);
+        printf("consumer: recieved %d.\n", d.arg);
         usleep(200000);
     }
     for (i = 0; i < LOOP; i++) {
@@ -134,7 +137,7 @@ void *consumer(void *q) {
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
         //pthread_cond_broadcast(fifo->notFull);
-        printf("consumer: recieved %d.\n", d);
+        printf("consumer: recieved %d.\n", d.arg);
         usleep(50000);
     }
     return (NULL);
