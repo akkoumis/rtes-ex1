@@ -55,24 +55,24 @@ void queueAdd(queue *q, workFunction in);
 void queueDel(queue *q, workFunction *out);
 
 int main() {
-    pthread_t pro, con; // Producer and Consumer thread TODO Convert to array
+    pthread_t pro[pNum], con[qNum]; // Producer and Consumer thread TODO Convert to array
 
     fifo = queueInit(); // Initialize the queue, using the function
     if (fifo == NULL) {
         fprintf(stderr, "main: Queue Init failed.\n");
         exit(1);
     }
-    for (int tid = 0; tid < 1; ++tid) {
-        pthread_create(&pro, NULL, producer, 0); // Create the Producer thread
+    for (int tid = 0; tid < pNum; ++tid) {
+        pthread_create(&pro[tid], NULL, producer, tid); // Create the Producer thread
     }
-    for (int tid = 0; tid < 1; ++tid) {
-        pthread_create(&con, NULL, consumer, 0); // Create the Consumer thread
+    for (int tid = 0; tid < qNum; ++tid) {
+        pthread_create(&con[tid], NULL, consumer, tid); // Create the Consumer thread
     }
-    for (int tid = 0; tid < 1; ++tid) {
-        pthread_join(pro, NULL); // Join  the Producer thread to main thread and wait for its completion
+    for (int tid = 0; tid < pNum; ++tid) {
+        pthread_join(pro[tid], NULL); // Join  the Producer thread to main thread and wait for its completion
     }
-    for (int tid = 0; tid < 1; ++tid) {
-        pthread_join(con, NULL); // Join  the Consumer thread to main thread and wait for its completion
+    for (int tid = 0; tid < qNum; ++tid) {
+        pthread_join(con[tid], NULL); // Join  the Consumer thread to main thread and wait for its completion
     }
     queueDelete(fifo);
 
@@ -100,21 +100,7 @@ void *producer(void *tid) {
         //pthread_cond_broadcast(fifo->notEmpty);
         usleep(100000);
     }
-    for (i = 0; i < LOOP; i++) {
-        pthread_mutex_lock(fifo->mut);
-        while (fifo->full) {
-            printf("producer %d: queue FULL.\n",(int)tid);
-            pthread_cond_wait(fifo->notFull, fifo->mut);
-        }
-        workFunction wF;
-        wF.arg=i;
-        queueAdd(fifo, wF);
-        printf("++\n");
-        pthread_mutex_unlock(fifo->mut);
-        pthread_cond_signal(fifo->notEmpty);
-        //pthread_cond_broadcast(fifo->notEmpty);
-        usleep(200000);
-    }
+
     return (NULL);
 }
 
@@ -138,19 +124,7 @@ void *consumer(void *tid) {
         printf("consumer %d: recieved %d.\n",(int)tid, d.arg);
         usleep(200000);
     }
-    for (i = 0; i < LOOP; i++) {
-        pthread_mutex_lock(fifo->mut);
-        while (fifo->empty) {
-            printf("consumer %d: queue EMPTY.\n",(int)tid);
-            pthread_cond_wait(fifo->notEmpty, fifo->mut);
-        }
-        queueDel(fifo, &d);
-        pthread_mutex_unlock(fifo->mut);
-        pthread_cond_signal(fifo->notFull);
-        //pthread_cond_broadcast(fifo->notFull);
-        printf("consumer %d: recieved %d.\n",(int)tid, d.arg);
-        usleep(50000);
-    }
+    
     return (NULL);
 }
 
