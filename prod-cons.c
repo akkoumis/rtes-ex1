@@ -39,7 +39,7 @@ typedef struct {
 
 // Structure representing the queue
 typedef struct {
-    workFunction buf[QUEUESIZE]; // Queue buffer
+    workFunction **buf; // Queue buffer
     long head, tail; // Boundries
     int full, empty; // Flags for empty, full
     pthread_mutex_t *mut; // Mutex for modifying the queue
@@ -54,9 +54,9 @@ queue *queueInit(void);
 
 void queueDelete(queue *q);
 
-void queueAdd(queue *q, workFunction in);
+void queueAdd(queue *q, workFunction *in);
 
-void queueDel(queue *q, workFunction *out);
+void queueDel(queue *q, workFunction **out);
 
 int main() {
     pthread_t pro[pNum], con[qNum]; // Producer and Consumer thread TODO Convert to array
@@ -121,9 +121,9 @@ void *producer(void *tid) {
             printf("producer %d: queue FULL.\n", (int) tid);
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
-        workFunction wF;
-        gettimeofday(&wF.tv, NULL);
-        wF.arg = i;
+        workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
+        gettimeofday(&(wF->tv), NULL);
+        wF->arg = i;
         queueAdd(fifo, wF);
         //printf("++\n");
         pthread_mutex_unlock(fifo->mut);
@@ -139,7 +139,7 @@ void *producer(void *tid) {
 void *consumer(void *tid) {
     //queue *fifo;
     int i;
-    workFunction d;
+    workFunction *d;
 
     //fifo = (queue *) q;
     while (1) {
@@ -158,12 +158,13 @@ void *consumer(void *tid) {
         }
         gettimeofday(&now, NULL);
         queueDel(fifo, &d);
-        timersub(&now, &(d.tv), &res);
-        fprintf(fp,"%ld\n",res.tv_sec * 1000000 + res.tv_usec);
+        timersub(&now, &(d->tv), &res);
+        fprintf(fp, "%ld\n", res.tv_sec * 1000000 + res.tv_usec);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
 //pthread_cond_broadcast(fifo->notFull);
-        printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d.arg, res.tv_sec * 1000000 + res.tv_usec);
+        printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
+        free(d); // workFunction to delete free
 //usleep(200000);
     }
 
@@ -186,6 +187,10 @@ queue *queueInit(void) {
     q = (queue *) malloc(sizeof(queue));
     if (q == NULL) return (NULL);
 
+    q->buf = (workFunction **) malloc(QUEUESIZE * sizeof(workFunction *)); // Buffer malloc
+    if (q->buf == NULL) // If buffer malloc failed then return NULL
+        return (NULL);
+    
     q->empty = 1;
     q->full = 0;
     q->head = 0;
@@ -207,10 +212,12 @@ void queueDelete(queue *q) {
     free(q->notFull);
     pthread_cond_destroy(q->notEmpty);
     free(q->notEmpty);
+
+    free(q->buf); // Buffer free
     free(q);
 }
 
-void queueAdd(queue *q, workFunction in) {
+void queueAdd(queue *q, workFunction *in) {
     q->buf[q->tail] = in;
     q->tail++;
     if (q->tail == QUEUESIZE)
@@ -222,7 +229,7 @@ void queueAdd(queue *q, workFunction in) {
     return;
 }
 
-void queueDel(queue *q, workFunction *out) {
+void queueDel(queue *q, workFunction **out) {
     *out = q->buf[q->head];
 
     q->head++;
