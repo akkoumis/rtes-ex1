@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #define QUEUESIZE 10
 #define LOOP 20
@@ -33,6 +34,7 @@ typedef struct {
     void *(*work)(void *);
 
     void *arg;
+    struct timeval tv;
 } workFunction;
 
 // Structure representing the queue
@@ -46,6 +48,7 @@ typedef struct {
 
 queue *fifo; // The queue
 int areProducersActive; // Flag whether there is at least one producer thread active
+FILE *fp;
 
 queue *queueInit(void);
 
@@ -62,6 +65,19 @@ int main() {
     if (fifo == NULL) {
         fprintf(stderr, "main: Queue Init failed.\n");
         exit(1);
+    }
+
+    __time_t timestamp;
+    time(&timestamp);
+    char buffer[25], name[50];
+    struct tm *info = localtime(&timestamp);
+    strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
+    sprintf(name, "../stats/%s_p_%d_q_%d.txt", buffer, pNum, qNum);
+    printf("timestamp: %s\n", name);
+    fp = fopen(name, "w+");
+    if (fp == NULL) {
+        fprintf(stderr, "main: File Open failed.\n");
+        exit(2);
     }
     for (int tid = 0; tid < pNum; ++tid) {
         pthread_create(&pro[tid], NULL, producer, tid); // Create the Producer thread
@@ -84,6 +100,8 @@ int main() {
     }
     queueDelete(fifo);
 
+    fclose(fp);
+
     return 0;
 }
 
@@ -100,13 +118,14 @@ void *producer(void *tid) {
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
         workFunction wF;
+        gettimeofday(&wF.tv, NULL);
         wF.arg = i;
         queueAdd(fifo, wF);
-        printf("++\n");
+        //printf("++\n");
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
         //pthread_cond_broadcast(fifo->notEmpty);
-        usleep(100000);
+        //usleep(100000);
     }
 
     printf("producer %d: RETURNED.\n", (int) tid);
@@ -136,8 +155,11 @@ void *consumer(void *tid) {
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
         //pthread_cond_broadcast(fifo->notFull);
-        printf("consumer %d: recieved %d.\n", (int) tid, d.arg);
-        usleep(200000);
+        struct timeval now, res;
+        gettimeofday(&now, NULL);
+        timersub(&now, &(d.tv), &res);
+        printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d.arg, res.tv_sec * 1000000 + res.tv_usec);
+        //usleep(200000);
     }
 
     //return (NULL);
