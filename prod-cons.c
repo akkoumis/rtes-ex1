@@ -58,6 +58,8 @@ void queueAdd(queue *q, workFunction *in);
 
 void queueDel(queue *q, workFunction **out);
 
+void consumerPrint(int a);
+
 int main() {
     pthread_t pro[pNum], con[qNum]; // Producer and Consumer thread TODO Convert to array
 
@@ -124,6 +126,7 @@ void *producer(void *tid) {
         workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
         wF->tv = (struct timeval *) malloc(sizeof(struct timeval));
         gettimeofday((wF->tv), NULL);
+        wF->work = &consumerPrint;
         wF->arg = i;
         queueAdd(fifo, wF);
         //printf("++\n");
@@ -164,7 +167,10 @@ void *consumer(void *tid) {
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
 //pthread_cond_broadcast(fifo->notFull);
-        printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
+        //printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
+        //printf("consumer %d:", (int) tid);
+        (*(d->work))(d->arg);
+        //printf(" after %d.\n", res.tv_sec * 1000000 + res.tv_usec);
         free(d->tv);
         free(d); // workFunction to delete free
 //usleep(200000);
@@ -242,4 +248,8 @@ void queueDel(queue *q, workFunction **out) {
     q->full = 0;
 
     return;
+}
+
+void consumerPrint(int a) {
+    printf(" received %d\n", a);
 }
