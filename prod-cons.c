@@ -34,7 +34,7 @@ typedef struct {
     void *(*work)(void *);
 
     void *arg;
-    struct timeval tv;
+    struct timeval *tv;
 } workFunction;
 
 // Structure representing the queue
@@ -122,7 +122,8 @@ void *producer(void *tid) {
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
         workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
-        gettimeofday(&(wF->tv), NULL);
+        wF->tv = (struct timeval *) malloc(sizeof(struct timeval));
+        gettimeofday((wF->tv), NULL);
         wF->arg = i;
         queueAdd(fifo, wF);
         //printf("++\n");
@@ -158,12 +159,13 @@ void *consumer(void *tid) {
         }
         gettimeofday(&now, NULL);
         queueDel(fifo, &d);
-        timersub(&now, &(d->tv), &res);
+        timersub(&now, (d->tv), &res);
         fprintf(fp, "%ld\n", res.tv_sec * 1000000 + res.tv_usec);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
 //pthread_cond_broadcast(fifo->notFull);
         printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
+        free(d->tv);
         free(d); // workFunction to delete free
 //usleep(200000);
     }
@@ -190,7 +192,7 @@ queue *queueInit(void) {
     q->buf = (workFunction **) malloc(QUEUESIZE * sizeof(workFunction *)); // Buffer malloc
     if (q->buf == NULL) // If buffer malloc failed then return NULL
         return (NULL);
-    
+
     q->empty = 1;
     q->full = 0;
     q->head = 0;
