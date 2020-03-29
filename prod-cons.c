@@ -22,7 +22,7 @@
 #include <sys/time.h>
 
 #define QUEUESIZE 10
-#define LOOP 20
+#define LOOP 2000
 #define pNum 1
 #define qNum 4
 
@@ -67,18 +67,21 @@ int main() {
         exit(1);
     }
 
+    // File Creation
     __time_t timestamp;
     time(&timestamp);
     char buffer[25], name[50];
     struct tm *info = localtime(&timestamp);
     strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
     sprintf(name, "../stats/%s_p_%d_q_%d.txt", buffer, pNum, qNum);
-    printf("timestamp: %s\n", name);
+    //printf("timestamp: %s\n", name);
     fp = fopen(name, "w+");
     if (fp == NULL) {
         fprintf(stderr, "main: File Open failed.\n");
         exit(2);
     }
+
+    // Thread Creation
     for (int tid = 0; tid < pNum; ++tid) {
         pthread_create(&pro[tid], NULL, producer, tid); // Create the Producer thread
     }
@@ -87,6 +90,7 @@ int main() {
         pthread_create(&con[tid], NULL, consumer, tid); // Create the Consumer thread
     }
 
+    // Thread Join
     for (int tid = 0; tid < pNum; ++tid) {
         pthread_join(pro[tid], NULL); // Join  the Producer thread to main thread and wait for its completion
     }
@@ -140,6 +144,7 @@ void *consumer(void *tid) {
     //fifo = (queue *) q;
     while (1) {
         //for (i = 0; i < LOOP; i++) {
+        struct timeval now, res;
         pthread_mutex_lock(fifo->mut);
         while (fifo->empty) {
             if (areProducersActive == 0) {
@@ -151,15 +156,15 @@ void *consumer(void *tid) {
             pthread_cond_wait(fifo->notEmpty, fifo->mut);
 
         }
+        gettimeofday(&now, NULL);
         queueDel(fifo, &d);
+        timersub(&now, &(d.tv), &res);
+        fprintf(fp,"%ld\n",res.tv_sec * 1000000 + res.tv_usec);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
-        //pthread_cond_broadcast(fifo->notFull);
-        struct timeval now, res;
-        gettimeofday(&now, NULL);
-        timersub(&now, &(d.tv), &res);
+//pthread_cond_broadcast(fifo->notFull);
         printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d.arg, res.tv_sec * 1000000 + res.tv_usec);
-        //usleep(200000);
+//usleep(200000);
     }
 
     //return (NULL);
