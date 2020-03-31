@@ -33,10 +33,14 @@ void *producer(void *tid);
 void *consumer(void *tid);
 
 typedef struct {
-    void *(*work)(void *);
-
-    void *arg;
+    void *args;
     struct timeval *tv;
+} functionArgument;
+
+typedef struct {
+    void *(*work)(void *); // Pointer to function with void pointer as input and void pointer as output
+
+    void *arg; // Void pointer. This is to be used to point to a functionArgument struct
 } workFunction;
 
 // Structure representing the queue
@@ -86,7 +90,7 @@ int main() {
     // File Creation
     __time_t timestamp;
     time(&timestamp);
-    char buffer[25], name[50];
+    char buffer[25], name[80];
     struct tm *info = localtime(&timestamp);
     strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
     sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d_function_%d.txt", buffer, pNum, qNum, LOOP, functionSelection);
@@ -138,19 +142,21 @@ void *producer(void *tid) {
 
     for (i = 0; i < LOOP; i++) {
         workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
-        wF->tv = (struct timeval *) malloc(sizeof(struct timeval));
+        functionArgument *fArg = (functionArgument *) malloc(sizeof(functionArgument));
+        fArg->tv = (struct timeval *) malloc(sizeof(struct timeval));
+        fArg->args = i;
+        wF->arg = fArg;
         if (functionSelection < functionsNum)
             wF->work = functions[functionSelection];
         else
             wF->work = functions[i % functionsNum];
-        wF->arg = i;
         pthread_mutex_lock(fifo->mut); // Attempt to lock queue mutex.
         while (fifo->full) { // When lock is acquired check if queue is full
             //printf("producer %d: queue FULL.\n", (int) tid);
             countFull++;
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
-        gettimeofday((wF->tv), NULL);
+        gettimeofday((fArg->tv), NULL);
         queueAdd(fifo, wF);
         //printf("++\n");
         pthread_mutex_unlock(fifo->mut);
@@ -186,7 +192,7 @@ void *consumer(void *tid) {
         }
         gettimeofday(&now, NULL);
         queueDel(fifo, &d);
-        timersub(&now, (d->tv), &res);
+        timersub(&now, ((functionArgument *) (d->arg))->tv, &res);
         //fprintf(fp, "%ld\n", res.tv_sec * 1000000 + res.tv_usec);
         //printf("%ld\n", res.tv_sec * 1000000 + res.tv_usec);
         times[indexTimes] = res.tv_sec * 1000000 + res.tv_usec;
@@ -196,9 +202,11 @@ void *consumer(void *tid) {
         //pthread_cond_broadcast(fifo->notFull);
         //printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
         //printf("consumer %d:", (int) tid);
-        (*(d->work))(d->arg); // Execute function
+        functionArgument * fATemp = d -> arg;
+        (*(d->work))(fATemp->args); // Execute function
         //printf(" after %d.\n", res.tv_sec * 1000000 + res.tv_usec);
-        free(d->tv);
+        free(((functionArgument *) (d->arg))->tv);
+        free(d->arg);
         free(d); // workFunction to delete free
 //usleep(200000);
     }
