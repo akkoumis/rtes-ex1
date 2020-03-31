@@ -14,3 +14,4 @@ add_executable(ex1
         prod-cons.c)
 
 target_link_libraries(ex1 pthread)
+target_link_libraries(ex1 m)

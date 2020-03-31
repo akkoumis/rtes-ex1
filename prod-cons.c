@@ -20,11 +20,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
 
 #define QUEUESIZE 10
-#define LOOP 2000
+#define LOOP 200000
 #define pNum 1
 #define qNum 4
+#define functionsNum 2
 
 void *producer(void *tid);
 
@@ -49,10 +51,10 @@ typedef struct {
 queue *fifo; // The queue
 int areProducersActive; // Flag whether there is at least one producer thread active
 FILE *fp;
-int countFull, countEmpty, indexTimes;
+int countFull, countEmpty, indexTimes, functionSelection;
 long int times[LOOP];
 
-void (*functions[2])(int);
+void (*functions[functionsNum])(int);
 
 queue *queueInit(void);
 
@@ -73,6 +75,7 @@ int main() {
     indexTimes = 0;
     functions[0] = &consumerPrint;
     functions[1] = &consumerCalculate;
+    functionSelection = 2; // 0 - print, 1 - cos calculation, 2 - both randomly
 
     fifo = queueInit(); // Initialize the queue, using the function
     if (fifo == NULL) {
@@ -86,7 +89,7 @@ int main() {
     char buffer[25], name[50];
     struct tm *info = localtime(&timestamp);
     strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
-    sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d.txt", buffer, pNum, qNum, LOOP);
+    sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d_function_%d.txt", buffer, pNum, qNum, LOOP, functionSelection);
     //printf("timestamp: %s\n", name);
     fp = fopen(name, "w+");
     if (fp == NULL) {
@@ -134,17 +137,20 @@ void *producer(void *tid) {
     //fifo = (queue *) q;
 
     for (i = 0; i < LOOP; i++) {
+        workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
+        wF->tv = (struct timeval *) malloc(sizeof(struct timeval));
+        if (functionSelection < functionsNum)
+            wF->work = functions[functionSelection];
+        else
+            wF->work = functions[i % functionsNum];
+        wF->arg = i;
         pthread_mutex_lock(fifo->mut); // Attempt to lock queue mutex.
         while (fifo->full) { // When lock is acquired check if queue is full
             //printf("producer %d: queue FULL.\n", (int) tid);
             countFull++;
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
-        workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
-        wF->tv = (struct timeval *) malloc(sizeof(struct timeval));
         gettimeofday((wF->tv), NULL);
-        wF->work = functions[1];
-        wF->arg = i;
         queueAdd(fifo, wF);
         //printf("++\n");
         pthread_mutex_unlock(fifo->mut);
@@ -276,5 +282,11 @@ void consumerPrint(int a) {
 }
 
 void consumerCalculate(int a) {
-    printf("cosin %d\n", a);
+    double temp = 0;
+
+    for (int i = 1; i < 11; ++i) {
+        temp += cos(a * i);
+    }
+    //printf("cosin %d\n", a);
+    //printf("cosin %d\t%lf\t%lf\n", a, cos(a), cos(2*a));
 }
