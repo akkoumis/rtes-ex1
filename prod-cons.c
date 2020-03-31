@@ -23,7 +23,7 @@
 #include <math.h>
 
 #define QUEUESIZE 10
-#define LOOP 200000
+#define LOOP 100000
 #define pNum 1
 #define qNum 4
 #define functionsNum 2
