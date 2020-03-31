@@ -49,6 +49,10 @@ typedef struct {
 queue *fifo; // The queue
 int areProducersActive; // Flag whether there is at least one producer thread active
 FILE *fp;
+int countFull, countEmpty, indexTimes;
+long int times[LOOP];
+
+void (*functions[2])(int);
 
 queue *queueInit(void);
 
@@ -60,8 +64,15 @@ void queueDel(queue *q, workFunction **out);
 
 void consumerPrint(int a);
 
+void consumerCalculate(int a);
+
 int main() {
-    pthread_t pro[pNum], con[qNum]; // Producer and Consumer thread TODO Convert to array
+    pthread_t pro[pNum], con[qNum]; // Producer and Consumer threads
+    countEmpty = 0;
+    countFull = 0;
+    indexTimes = 0;
+    functions[0] = &consumerPrint;
+    functions[1] = &consumerCalculate;
 
     fifo = queueInit(); // Initialize the queue, using the function
     if (fifo == NULL) {
@@ -75,7 +86,7 @@ int main() {
     char buffer[25], name[50];
     struct tm *info = localtime(&timestamp);
     strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
-    sprintf(name, "../stats/%s_p_%d_q_%d.txt", buffer, pNum, qNum);
+    sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d.txt", buffer, pNum, qNum, LOOP);
     //printf("timestamp: %s\n", name);
     fp = fopen(name, "w+");
     if (fp == NULL) {
@@ -106,6 +117,11 @@ int main() {
     }
     queueDelete(fifo);
 
+    for (int i = 0; i < indexTimes; ++i) {
+        fprintf(fp, "%ld\n", times[i]);
+    }
+    printf("\n\ncountEmpty = %d\tcountFull = %d\n", countEmpty, countFull);
+    fprintf(fp, "\n\ncountEmpty = %d\tcountFull = %d\n", countEmpty, countFull);
     fclose(fp);
 
     return 0;
@@ -120,13 +136,14 @@ void *producer(void *tid) {
     for (i = 0; i < LOOP; i++) {
         pthread_mutex_lock(fifo->mut); // Attempt to lock queue mutex.
         while (fifo->full) { // When lock is acquired check if queue is full
-            printf("producer %d: queue FULL.\n", (int) tid);
+            //printf("producer %d: queue FULL.\n", (int) tid);
+            countFull++;
             pthread_cond_wait(fifo->notFull, fifo->mut); // Conditional wait until queue is full NO MORE
         }
         workFunction *wF = (workFunction *) malloc(sizeof(workFunction)); // workFunction to add malloc
         wF->tv = (struct timeval *) malloc(sizeof(struct timeval));
         gettimeofday((wF->tv), NULL);
-        wF->work = &consumerPrint;
+        wF->work = functions[1];
         wF->arg = i;
         queueAdd(fifo, wF);
         //printf("++\n");
@@ -153,23 +170,27 @@ void *consumer(void *tid) {
         while (fifo->empty) {
             if (areProducersActive == 0) {
                 pthread_mutex_unlock(fifo->mut);
-                printf("consumer %d: queue RETURNED.\n", (int) tid);
+                printf("consumer %d: RETURNED.\n", (int) tid);
                 return (NULL);
             }
-            printf("consumer %d: queue EMPTY.\n", (int) tid);
+            //printf("consumer %d: queue EMPTY.\n", (int) tid);
+            countEmpty++;
             pthread_cond_wait(fifo->notEmpty, fifo->mut);
 
         }
         gettimeofday(&now, NULL);
         queueDel(fifo, &d);
         timersub(&now, (d->tv), &res);
-        fprintf(fp, "%ld\n", res.tv_sec * 1000000 + res.tv_usec);
+        //fprintf(fp, "%ld\n", res.tv_sec * 1000000 + res.tv_usec);
+        //printf("%ld\n", res.tv_sec * 1000000 + res.tv_usec);
+        times[indexTimes] = res.tv_sec * 1000000 + res.tv_usec;
+        indexTimes++;
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
-//pthread_cond_broadcast(fifo->notFull);
+        //pthread_cond_broadcast(fifo->notFull);
         //printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
         //printf("consumer %d:", (int) tid);
-        (*(d->work))(d->arg);
+        (*(d->work))(d->arg); // Execute function
         //printf(" after %d.\n", res.tv_sec * 1000000 + res.tv_usec);
         free(d->tv);
         free(d); // workFunction to delete free
@@ -252,4 +273,8 @@ void queueDel(queue *q, workFunction **out) {
 
 void consumerPrint(int a) {
     printf(" received %d\n", a);
+}
+
+void consumerCalculate(int a) {
+    printf("cosin %d\n", a);
 }
