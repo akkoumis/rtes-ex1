@@ -25,7 +25,7 @@
 #define QUEUESIZE 10
 #define LOOP 100000
 #define pNum 1
-#define qNum 128
+#define qNum 1024
 #define functionsNum 2
 
 void *producer(void *tid);
