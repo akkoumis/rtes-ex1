@@ -114,8 +114,8 @@ int main() {
     for (int tid = 0; tid < pNum; ++tid) {
         pthread_join(pro[tid], NULL); // Join  the Producer thread to main thread and wait for its completion
     }
-    areProducersActive = 0;
     pthread_mutex_lock(fifo->mut);
+    areProducersActive = 0;
     pthread_cond_broadcast(fifo->notEmpty); // In case any of the consumers is condition waiting
     printf("BROADCAST for possible conditional waiting consumers!!!\n");
     pthread_mutex_unlock(fifo->mut);
