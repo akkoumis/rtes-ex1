@@ -22,10 +22,10 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define QUEUESIZE 10
+#define QUEUESIZE 1000
 #define LOOP 100000
 #define pNum 1
-#define qNum 4
+#define qNum 128
 #define functionsNum 2
 
 void *producer(void *tid);
@@ -90,10 +90,11 @@ int main() {
     // File Creation
     __time_t timestamp;
     time(&timestamp);
-    char buffer[25], name[80];
+    char buffer[25], name[100];
     struct tm *info = localtime(&timestamp);
     strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
-    sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d_function_%d.txt", buffer, pNum, qNum, LOOP, functionSelection);
+    sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d_QS_%d_function_%d.txt", buffer, pNum, qNum, LOOP, QUEUESIZE,
+            functionSelection);
     //printf("timestamp: %s\n", name);
     fp = fopen(name, "w+");
     if (fp == NULL) {
@@ -202,7 +203,7 @@ void *consumer(void *tid) {
         //pthread_cond_broadcast(fifo->notFull);
         //printf("consumer %d: recieved %d, after %ld.\n", (int) tid, d->arg, res.tv_sec * 1000000 + res.tv_usec);
         //printf("consumer %d:", (int) tid);
-        functionArgument * fATemp = d -> arg;
+        functionArgument *fATemp = d->arg;
         (*(d->work))(fATemp->args); // Execute function
         //printf(" after %d.\n", res.tv_sec * 1000000 + res.tv_usec);
         free(((functionArgument *) (d->arg))->tv);
