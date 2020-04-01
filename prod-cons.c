@@ -22,10 +22,10 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define QUEUESIZE 10
+#define QUEUESIZE 15
 #define LOOP 100000
 #define pNum 1
-#define qNum 10000
+#define qNum 128
 #define functionsNum 2
 
 void *producer(void *tid);
@@ -93,7 +93,7 @@ int main() {
     char buffer[25], name[100];
     struct tm *info = localtime(&timestamp);
     strftime(buffer, 25, "%Y_%m_%d_%H_%M_%S", info);
-    sprintf(name, "../stats/%s_p_%d_q_%d_LOOP_%d_QS_%d_function_%d.txt", buffer, pNum, qNum, LOOP, QUEUESIZE,
+    sprintf(name, "stats/%s_p_%d_q_%d_LOOP_%d_QS_%d_function_%d.txt", buffer, pNum, qNum, LOOP, QUEUESIZE,
             functionSelection);
     //printf("timestamp: %s\n", name);
     fp = fopen(name, "w+");
