@@ -22,10 +22,10 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define QUEUESIZE 30
+#define QUEUESIZE 10
 #define LOOP 100000
 #define pNum 1
-#define qNum 4
+#define qNum 128
 #define functionsNum 2
 
 void *producer(void *tid);
