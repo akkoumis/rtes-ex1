@@ -15,3 +15,6 @@ add_executable(ex1
 
 target_link_libraries(ex1 pthread)
 target_link_libraries(ex1 m)
+
+unset(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
+unset(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES)
